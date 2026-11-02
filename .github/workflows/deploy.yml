@@ -1,0 +1,101 @@
+# Contrôles à chaque push / pull request ; déploiement sur GitHub Pages uniquement depuis la branche main.
+# Le build n'inclut que le code source : aucune donnée personnelle n'existe dans le dépôt (voir npm run check:privacy).
+name: Contrôles et déploiement
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Indiquer si ce passage sera publié
+        run: |
+          {
+            echo "### Publication GitHub Pages"
+            echo "- Branche de ce passage : \`${{ github.ref_name }}\` · branche par défaut du dépôt : \`${{ github.event.repository.default_branch }}\`"
+            if [ "${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}" = "true" ]; then
+              echo "- ✅ Ce passage sera **publié** (job \`deploy\`)."
+            else
+              echo "- ⚠️ Ce passage ne sera **pas publié** : seul un passage sur la branche par défaut (hors pull request) déclenche le job \`deploy\`, qui apparaît alors « ignoré » (gris), sans erreur. Le site garde son contenu précédent."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Vérifier que les fichiers indispensables sont bien dans le dépôt
+        run: |
+          for f in package.json package-lock.json index.html src/main.tsx; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Fichier manquant à la racine du dépôt : $f. Le projet doit être à la racine du dépôt (pas dans un sous-dossier) et le dossier src/ doit avoir été poussé."
+              exit 1
+            fi
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances (versions figées par package-lock.json)
+        run: npm ci
+
+      - name: Contrôle de confidentialité (aucune donnée personnelle, aucun appel réseau)
+        run: npm run check:privacy
+
+      - name: Vérification TypeScript
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build (chemin de déploiement = nom du dépôt)
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      - name: Vérifier que le site produit est bien le build (et non le code source)
+        run: |
+          test -f dist/index.html || { echo "::error::dist/index.html est absent : le build a échoué."; exit 1; }
+          if grep -q "/src/main.tsx" dist/index.html; then
+            echo "::error::dist/index.html référence encore /src/main.tsx : ce n'est pas un build de production."
+            exit 1
+          fi
+
+      - name: Contrôle de confidentialité du bundle produit
+        run: npm run check:privacy
+
+      - name: Préparer l'artefact Pages
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      - uses: actions/checkout@v4
+
+      - name: Vérifier le site réellement publié (build, et non code source)
+        run: bash scripts/smoke-site.sh "${{ steps.deployment.outputs.page_url }}"

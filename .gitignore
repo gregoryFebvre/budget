@@ -1,0 +1,27 @@
+# Dépendances et génération
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+
+# Environnement / secrets
+.env
+.env.*
+!.env.example
+
+# DONNÉES PERSONNELLES : ne jamais versionner
+budget-backup-*.json
+*backup*.json
+backups/
+private/
+*.xlsx
+*.xlsm
+*.xls
+*.ods
+*.numbers
+*.csv
+
+# Divers
+.DS_Store
+Thumbs.db
