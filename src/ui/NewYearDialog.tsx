@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useBudgetStore } from '../store/budgetStore';
 
 export function NewYearDialog({ onClose }: { onClose: () => void }) {
-  const years = useBudgetStore((s) => Object.values(s.data.years).map((y) => y.year)).sort((a, b) => b - a);
+  const yearsRecord = useBudgetStore((s) => s.data.years);
+  const years = useMemo(
+    () => Object.values(yearsRecord).map((y) => y.year).sort((a, b) => b - a),
+    [yearsRecord],
+  );
   const createYear = useBudgetStore((s) => s.createYear);
   const latest = years[0];
   const [year, setYear] = useState(String(latest !== undefined ? latest + 1 : new Date().getFullYear()));
