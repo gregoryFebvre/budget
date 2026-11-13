@@ -148,7 +148,7 @@ export interface ItemComparisonRow {
   archived: boolean;
   /** Total annuel par année ; null = élément absent de cette année. */
   totals: Record<number, Cents | null>;
-  /** Part dans le total de SA famille (0..1) ; null si absent ou famille nulle. */
+  /** Part dans les REVENUS de l'année (0..1, même base prévu/pointé que les montants) ; null si absent ou revenus nuls. */
   shares: Record<number, number | null>;
   /** Évolution par rapport à l'année de référence (clé = année comparée). */
   evolutions: Record<number, Evolution>;
@@ -183,10 +183,10 @@ export function compareItems(
       }
       const m = itemMonthly(y, id, basis);
       const total = sum(m);
-      const familyTotal = stats.get(y.year)!.family[item.familyId];
+      const revenus = stats.get(y.year)!.family.revenus;
       totals[y.year] = total;
       monthly[y.year] = m;
-      shares[y.year] = familyTotal === 0 ? null : total / familyTotal;
+      shares[y.year] = revenus === 0 ? null : total / revenus;
     }
     const evolutions: Record<number, Evolution> = {};
     for (const y of ys) if (y.year !== refYear) evolutions[y.year] = compare(totals[refYear], totals[y.year]);

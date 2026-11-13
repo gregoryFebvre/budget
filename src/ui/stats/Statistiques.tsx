@@ -330,7 +330,7 @@ export default function Statistiques() {
       </div>
 
       <h2>Comparaison détaillée des éléments</h2>
-      <p className="hint">La « part » est la part de l'élément dans le total de sa famille pour l'année concernée ; son évolution est donnée en points de pourcentage par rapport à la référence.</p>
+      <p className="hint">La « part des revenus » est le total annuel de l'élément divisé par le total des revenus de la même année (sur la base choisie : prévu ou pointé). Elle n'est pas calculable si les revenus de l'année sont nuls ; son évolution est donnée en points de pourcentage par rapport à la référence.</p>
       <div className="table-scroll">
         <table className="mgmt-table stat-table" aria-label="Comparaison détaillée des éléments">
           <thead>
@@ -360,7 +360,7 @@ export default function Statistiques() {
                   </th>
                   {years.map((y) => {
                     const share = r.shares[y];
-                    return <ValueCell key={y} value={r.totals[y] ?? null} extra={share === null || share === undefined ? undefined : `part : ${percent(share)}${y === refYear ? '' : ` (${pointsText(compareRates(r.shares[refYear] ?? null, share))} vs réf.)`}`} {...(r.evolutions[y] ? { evo: r.evolutions[y]! } : {})} />;
+                    return <ValueCell key={y} value={r.totals[y] ?? null} extra={share === null || share === undefined ? undefined : `part des revenus : ${percent(share)}${y === refYear ? '' : ` (${pointsText(compareRates(r.shares[refYear] ?? null, share))} vs réf.)`}`} {...(r.evolutions[y] ? { evo: r.evolutions[y]! } : {})} />;
                   })}
                 </tr>
               </Fragment>

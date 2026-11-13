@@ -105,13 +105,43 @@ describe('comparaison d\'éléments entre années', () => {
     expect(rows.find((r) => r.label === 'Loyer principal')!.totals[2030]).toBe(140000);
   });
 
-  it('part dans la famille, tri par montant de référence', () => {
+  it('part dans les REVENUS de l\'année (et non dans la famille), tri par montant de référence', () => {
     const d = build();
     const rows = compareItems(d, [2030, 2031], 2030, 'planned', all);
     const loyer = rows.find((r) => r.label === 'Loyer')!;
-    expect(loyer.shares[2030]).toBeCloseTo(140000 / 141000, 6);
+    expect(loyer.shares[2030]).toBeCloseTo(140000 / 200000, 6); // revenus 2030 = 200 000 (et non le total de la famille 141 000)
+    expect(loyer.shares[2031]).toBeCloseTo(147000 / 200000, 6);
     expect(rows.find((r) => r.label === 'Salaire')!.shares[2030]).toBe(1);
+    expect(rows.find((r) => r.label === 'Ancien abonnement')!.shares[2030]).toBeCloseTo(1000 / 200000, 6);
+    expect(rows.find((r) => r.label === 'Ancien abonnement')!.shares[2031]).toBeNull(); // absent en 2031
     expect(rows.map((r) => r.label)).toEqual(['Salaire', 'Loyer', 'Ancien abonnement', 'Nouvelle charge']); // tri : total de référence décroissant, absents en dernier
+  });
+
+  it('la part dans les revenus s\'applique à toutes les familles, épargne comprise', () => {
+    let d = m.createYear(m.createEmptyData(), 2030);
+    d = withItem(d, 'Salaire', 'revenus', { 1: 200000 }, { year: 2030 });
+    d = withItem(d, 'Livret', 'epargne', { 1: 10000 }, { year: 2030 });
+    const rows = compareItems(d, [2030], 2030, 'planned', all);
+    expect(rows.find((r) => r.label === 'Livret')!.shares[2030]).toBeCloseTo(0.05, 6); // 5 % des revenus (et non 100 % de la famille épargne)
+  });
+
+  it('revenus nuls : part non calculable (null), jamais 0 ni infini', () => {
+    let d = m.createYear(m.createEmptyData(), 2030);
+    d = withItem(d, 'Loyer', 'depenses_fixes', { 1: 70000 }, { year: 2030 });
+    expect(compareItems(d, [2030], 2030, 'planned', all)[0]!.shares[2030]).toBeNull();
+    d = withItem(d, 'Salaire', 'revenus', { 1: 0 }, { year: 2030 }); // revenus saisis à 0 : toujours non calculable
+    expect(compareItems(d, [2030], 2030, 'planned', all).find((r) => r.label === 'Loyer')!.shares[2030]).toBeNull();
+  });
+
+  it('base « pointé » : part = montants pointés de l\'élément / revenus pointés', () => {
+    let d = m.createYear(m.createEmptyData(), 2030);
+    d = withItem(d, 'Salaire', 'revenus', { 1: 200000 }, { year: 2030, checked: [1] });
+    d = withItem(d, 'Loyer', 'depenses_fixes', { 1: 70000, 2: 70000 }, { year: 2030, checked: [1] });
+    const loyer = (basis: 'planned' | 'checked') => compareItems(d, [2030], 2030, basis, all).find((r) => r.label === 'Loyer')!;
+    expect(loyer('planned').shares[2030]).toBeCloseTo(140000 / 200000, 6);
+    expect(loyer('checked').shares[2030]).toBeCloseTo(70000 / 200000, 6);
+    const unchecked = m.toggleChecked(d, 2030, idOf(d, 'Salaire'), 1); // plus aucun revenu pointé
+    expect(compareItems(unchecked, [2030], 2030, 'checked', all).find((r) => r.label === 'Loyer')!.shares[2030]).toBeNull();
   });
 
   it('filtres famille et catégorie', () => {

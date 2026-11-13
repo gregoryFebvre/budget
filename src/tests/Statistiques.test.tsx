@@ -77,14 +77,23 @@ describe('écran Statistiques', () => {
     expect(nouveau).toHaveTextContent('élément absent d\'une des deux années');
   });
 
-  it('évolution de la part dans la famille (en points)', async () => {
+  it('part dans les revenus et son évolution (en points)', async () => {
     const user = await open();
     await user.selectOptions(screen.getByLabelText('Année de référence'), '2029');
     await user.click(screen.getByRole('checkbox', { name: '2030' }));
     await user.selectOptions(screen.getByLabelText('Famille'), 'depenses_fixes');
     const loyer = rowOf(screen.getByRole('table', { name: 'Comparaison détaillée des éléments' }), /^Loyer/);
-    expect(loyer).toHaveTextContent('part : 100,0 %');
-    expect(loyer).toHaveTextContent(/part : 98,7 % \(−1,3 pt vs réf\.\)/);
+    // 2029 : 70 000 / 200 000 de revenus = 35,0 % ; 2030 : 75 000 / 270 000 = 27,8 % (et non 100 % / 98,7 % de la famille)
+    expect(loyer).toHaveTextContent('part des revenus : 35,0 %');
+    expect(loyer).toHaveTextContent(/part des revenus : 27,8 % \(−7,2 pt vs réf\.\)/);
+    expect(loyer).not.toHaveTextContent('100,0 %');
+    expect(screen.getByText(/La « part des revenus » est le total annuel de l'élément divisé par le total des revenus/)).toBeInTheDocument();
+  });
+
+  it('part des revenus : aussi pour un revenu (part du salaire dans l\'ensemble des revenus)', async () => {
+    const user = await open();
+    await user.selectOptions(screen.getByLabelText('Famille'), 'revenus');
+    expect(rowOf(screen.getByRole('table', { name: 'Comparaison détaillée des éléments' }), /^Salaire/)).toHaveTextContent('part des revenus : 81,5 %'); // 220 000 / 270 000
   });
 
   it('base « pointé » : seuls les montants pointés comptent', async () => {
